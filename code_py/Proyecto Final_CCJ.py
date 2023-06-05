@@ -1,183 +1,213 @@
 import tkinter as tk
-from tkinter import messagebox
 import random
-import time
+from tkinter import messagebox
 
-class Game:
-    def __init__(self, root, size, num_turns):
-        self.root = root
-        self.size = size
-        self.num_turns = num_turns
-        self.current_player = 0
-        self.players = []
-        self.points = []
-        self.timer_running = False
-        self.timer_start = 0
-        self.timer_limit = 25
-        
-        self.board = []
-        for _ in range(size):
-            row = []
-            for _ in range(size):
-                row.append(0)
-            self.board.append(row)
-        
-        self.create_widgets()
-    
-    def create_widgets(self):
-        self.frame = tk.Frame(self.root)
-        self.frame.pack()
-        
-        self.size_label = tk.Label(self.frame, text="Tamaño del tablero:")
-        self.size_label.grid(row=0, column=0, padx=5, pady=5)
-        
-        self.size_entry = tk.Entry(self.frame)
-        self.size_entry.grid(row=0, column=1, padx=5, pady=5)
-        
-        self.start_button = tk.Button(self.frame, text="Iniciar juego", command=self.start_game)
-        self.start_button.grid(row=0, column=2, padx=5, pady=5)
-        
-    def start_game(self):
-        size = self.size_entry.get()
-        if not size.isdigit() or int(size) < 3:
-            messagebox.showerror("Error", "Ingrese un tamaño válido (entero mayor o igual a 3).")
-            return
-        
-        self.size = int(size)
-        
-        self.frame.destroy()
-        self.frame = tk.Frame(self.root)
-        self.frame.pack()
-        
-        self.players_label = tk.Label(self.frame, text="Nombres de los jugadores:")
-        self.players_label.grid(row=0, column=0, padx=5, pady=5)
-        
-        self.players_entry = tk.Entry(self.frame)
-        self.players_entry.grid(row=0, column=1, padx=5, pady=5)
-        
-        self.players_button = tk.Button(self.frame, text="Agregar jugador", command=self.add_player)
-        self.players_button.grid(row=0, column=2, padx=5, pady=5)
-        
-    def add_player(self):
-        player_name = self.players_entry.get()
-        if not player_name:
-            messagebox.showerror("Error", "Ingrese un nombre válido para el jugador.")
-            return
-        
-        self.players.append(player_name)
-        self.points.append(0)
-        self.players_entry.delete(0, tk.END)
-        
-        if len(self.players) == 2:
-            self.frame.destroy()
-            self.frame = tk.Frame(self.root)
-            self.frame.pack()
-            
-            self.turn_label = tk.Label(self.frame, text="Turno del jugador: {}".format(self.players[self.current_player]))
-            self.turn_label.pack(padx=5, pady=5)
-            
-            self.timer_label = tk.Label(self.frame, text="Tiempo restante: {}".format(self.timer_limit))
-            self.timer_label.pack(padx=5, pady=5)
-            
-            self.options_frame = tk.Frame(self.frame)
-            self.options_frame.pack(padx=5, pady=5)
-            
-            self.result_label = tk.Label(self.frame, text="")
-            self.result_label.pack(padx=5, pady=5)
-            
-            self.create_board()
-            self.next_turn()
-        
-    def create_board(self):
-        self.board_buttons = []
-        
-        for i in range(self.size):
-            row = []
-            for j in range(self.size):
-                button = tk.Button(self.frame, text="", width=5, height=2, command=lambda i=i, j=j: self.choose_cell(i, j))
-                button.grid(row=i, column=j, padx=5, pady=5)
-                row.append(button)
-            self.board_buttons.append(row)
-    
-    def choose_cell(self, i, j):
-        if not self.timer_running:
-            self.timer_start = time.time()
-            self.timer_running = True
-            
-        self.board_buttons[i][j]['state'] = tk.DISABLED
-        
-        neighbors = []
-        for x in range(max(0, i-1), min(self.size, i+2)):
-            for y in range(max(0, j-1), min(self.size, j+2)):
-                neighbors.append(self.board[x][y])
-                self.board_buttons[x][y]['text'] = str(self.board[x][y])
-        
-        result = sum(neighbors) * self.board[i][j]
-        options = [result, result + random.randint(1, 5), result - random.randint(1, 5), random.randint(0, 100)]
-        random.shuffle(options)
-        
-        self.show_options(options)
-    
-    def show_options(self, options):
-        for widget in self.options_frame.winfo_children():
-            widget.destroy()
-        
-        for i, option in enumerate(options):
-            button = tk.Button(self.options_frame, text=str(option), width=5, height=2, command=lambda option=option: self.check_answer(option))
-            button.grid(row=0, column=i, padx=5, pady=5)
-    
-    def check_answer(self, option):
-        self.timer_running = False
-        self.timer_start = 0
-        
-        if option == sum(self.board[i][j] for i in range(self.size) for j in range(self.size)):
-            self.points[self.current_player] += 3
-            self.result_label.config(text="¡Respuesta correcta! +3 puntos")
-        else:
-            self.result_label.config(text="Respuesta incorrecta. No se suman puntos")
-        
-        self.next_turn()
-    
-    def next_turn(self):
-        self.current_player = (self.current_player + 1) % 2
-        self.num_turns -= 1
-        
-        if self.num_turns == 0:
-            self.end_game()
-        else:
-            self.frame.after(1000, self.start_turn)
-    
-    def start_turn(self):
-        self.turn_label.config(text="Turno del jugador: {}".format(self.players[self.current_player]))
-        self.result_label.config(text="")
-        
-        for i in range(self.size):
-            for j in range(self.size):
-                self.board_buttons[i][j]['text'] = ""
-                self.board_buttons[i][j]['state'] = tk.NORMAL
-        
-        self.timer_running = True
-        self.timer_start = time.time()
-        self.update_timer()
-    
-    def update_timer(self):
-        if self.timer_running:
-            elapsed_time = int(time.time() - self.timer_start)
-            remaining_time = max(0, self.timer_limit - elapsed_time)
-            self.timer_label.config(text="Tiempo restante: {}".format(remaining_time))
-            
-            if remaining_time == 0:
-                self.timer_running = False
-                self.check_answer(None)
-            else:
-                self.frame.after(1000, self.update_timer)
-    
-    def end_game(self):
-        winner = self.players[self.points.index(max(self.points))]
-        messagebox.showinfo("Fin del juego", "El ganador es: {}".format(winner))
-        self.root.destroy()
+class MatrizAritmeticaGUI:
+    def __init__(self):
+        self.root = tk.Tk()
+        self.root.title("Matriz Aritmética")
+        self.root.geometry("500x500")
 
-root = tk.Tk()
-root.title("Juego de Matrices")
-game = Game(root, 3, 2)  # Tamaño del tablero: 3x3, 2 turnos por jugador
-root.mainloop()
+        self.crear_interfaz()
+
+        self.root.mainloop()
+
+    def crear_interfaz(self):
+        # Etiqueta y entrada para el número de participaciones
+        self.label_participaciones = tk.Label(self.root, text="Número de participaciones:")
+        self.label_participaciones.pack()
+        self.entry_participaciones = tk.Entry(self.root)
+        self.entry_participaciones.pack()
+
+        # Etiqueta y entrada para el tamaño del tablero
+        self.label_tamano = tk.Label(self.root, text="Tamaño del tablero (N x N):")
+        self.label_tamano.pack()
+        self.entry_tamano = tk.Entry(self.root)
+        self.entry_tamano.pack()
+
+        # Etiqueta y entradas para los nombres de los jugadores
+        self.label_nombres = tk.Label(self.root, text="Nombres de los jugadores:")
+        self.label_nombres.pack()
+        self.entry_nombre1 = tk.Entry(self.root)
+        self.entry_nombre1.pack()
+        self.entry_nombre2 = tk.Entry(self.root)
+        self.entry_nombre2.pack()
+
+        # Botón para iniciar el juego
+        self.button_iniciar = tk.Button(self.root, text="Iniciar Juego", command=self.iniciar_juego)
+        self.button_iniciar.pack()
+
+    def iniciar_juego(self):
+        # Obtener el número de participaciones y el tamaño del tablero
+        participaciones = int(self.entry_participaciones.get())
+        tamano = int(self.entry_tamano.get())
+
+        # Obtener los nombres de los jugadores
+        nombre1 = self.entry_nombre1.get()
+        nombre2 = self.entry_nombre2.get()
+        self.nombres = [nombre1, nombre2]
+
+        # Crear el tablero de juego
+        self.tablero = self.crear_tablero(tamano)
+
+        # Crear la interfaz del juego
+        self.crear_interfaz_juego()
+
+        # Iniciar el juego
+        self.participaciones = 0
+        self.puntajes = [0, 0]
+        self.turno = 0
+        self.mostrar_puntajes()
+        self.mostrar_turno()
+        self.siguiente_turno()
+
+    def crear_tablero(self, tamano):
+        tablero = []
+        for _ in range(tamano):
+            fila = [random.randint(0, 11) for _ in range(tamano)]
+            tablero.append(fila)
+        return tablero
+
+    def crear_interfaz_juego(self):
+        # Ocultar la interfaz de configuración
+        self.label_participaciones.pack_forget()
+        self.entry_participaciones.pack_forget()
+        self.label_tamano.pack_forget()
+        self.entry_tamano.pack_forget()
+        self.label_nombres.pack_forget()
+        self.entry_nombre1.pack_forget()
+        self.entry_nombre2.pack_forget()
+        self.button_iniciar.pack_forget()
+
+        # Crear el marco para la interfaz del juego
+        self.frame_juego = tk.Frame(self.root)
+        self.frame_juego.pack()
+
+        # Etiqueta para mostrar el tablero
+        self.label_tablero = tk.Label(self.frame_juego)
+        self.label_tablero.pack()
+
+        # Etiqueta para mostrar los puntajes
+        self.label_puntajes = tk.Label(self.frame_juego, text="Puntajes:")
+        self.label_puntajes.pack()
+
+        # Etiqueta para mostrar el turno
+        self.label_turno = tk.Label(self.frame_juego, text="Turno:")
+        self.label_turno.pack()
+
+    def mostrar_puntajes(self):
+        puntajes_texto = f"{self.nombres[0]}: {self.puntajes[0]}   {self.nombres[1]}: {self.puntajes[1]}"
+        self.label_puntajes.config(text=puntajes_texto)
+
+    def mostrar_turno(self):
+        turno_texto = f"Turno de: {self.nombres[self.turno]}"
+        self.label_turno.config(text=turno_texto)
+
+    def siguiente_turno(self):
+        self.participaciones += 1
+
+        if self.participaciones > int(self.entry_participaciones.get()):
+            self.mostrar_resultado_final()
+        else:
+            self.mostrar_puntajes()
+            self.mostrar_turno()
+            self.crear_tablero_interactivo()
+
+    def crear_tablero_interactivo(self):
+        tamano = len(self.tablero)
+        self.botones = []
+        for i in range(tamano):
+            fila_botones = []
+            for j in range(tamano):
+                boton = tk.Button(self.label_tablero, text="", width=4, height=2, command=lambda i=i, j=j: self.revelar_numero(i, j))
+                boton.grid(row=i, column=j)
+                fila_botones.append(boton)
+            self.botones.append(fila_botones)
+
+    def revelar_numero(self, fila, columna):
+        numero = self.tablero[fila][columna]
+        vecinos = self.obtener_vecinos(fila, columna)
+        suma_vecinos = sum(vecinos)
+        operacion = f"({'+'.join(map(str, vecinos))})*{numero}"
+        self.operacion_actual = operacion
+
+        # Ocultar los botones
+        for i in range(len(self.tablero)):
+            for j in range(len(self.tablero)):
+                self.botones[i][j].config(text="", state=tk.DISABLED)
+
+        # Mostrar el número seleccionado y sus vecinos
+        for i in range(len(self.tablero)):
+            for j in range(len(self.tablero)):
+                if (i == fila and j == columna) or (i, j) in self.obtener_posiciones_vecinos(fila, columna):
+                    self.botones[i][j].config(text=str(self.tablero[i][j]), bg="blue", fg="white")
+                else:
+                    self.botones[i][j].config(text="", bg="white")
+
+        self.mostrar_operacion(operacion)
+
+    def obtener_vecinos(self, fila, columna):
+        vecinos = []
+        for i, j in self.obtener_posiciones_vecinos(fila, columna):
+            vecinos.append(self.tablero[i][j])
+        return vecinos
+
+    def obtener_posiciones_vecinos(self, fila, columna):
+        posiciones = []
+        tamano = len(self.tablero)
+        for i in range(max(0, fila - 1), min(fila + 2, tamano)):
+            for j in range(max(0, columna - 1), min(columna + 2, tamano)):
+                posiciones.append((i, j))
+        return posiciones
+
+    def mostrar_operacion(self, operacion):
+        self.label_operacion = tk.Label(self.frame_juego, text=operacion)
+        self.label_operacion.pack()
+
+        self.respuesta_correcta = eval(self.operacion_actual)
+
+        # Mostrar las posibles respuestas
+        self.respuestas = self.generar_respuestas(self.respuesta_correcta)
+        self.button_respuestas = []
+        for respuesta in self.respuestas:
+            button_respuesta = tk.Button(self.frame_juego, text=str(respuesta), width=4, height=2, command=lambda respuesta=respuesta: self.verificar_respuesta(respuesta))
+            button_respuesta.pack()
+            self.button_respuestas.append(button_respuesta)
+
+    def generar_respuestas(self, respuesta_correcta):
+        respuestas = [respuesta_correcta]
+        while len(respuestas) < 4:
+            respuesta = random.randint(respuesta_correcta - 10, respuesta_correcta + 10)
+            if respuesta != respuesta_correcta and respuesta not in respuestas:
+                respuestas.append(respuesta)
+        random.shuffle(respuestas)
+        return respuestas
+
+    def verificar_respuesta(self, respuesta):
+        self.label_operacion.destroy()
+        for button_respuesta in self.button_respuestas:
+            button_respuesta.destroy()
+
+        if respuesta == self.respuesta_correcta:
+            self.puntajes[self.turno] += 3
+
+        self.turno = (self.turno + 1) % 2
+        self.siguiente_turno()
+
+    def mostrar_resultado_final(self):
+        ganador = None
+        if self.puntajes[0] > self.puntajes[1]:
+            ganador = self.nombres[0]
+        elif self.puntajes[1] > self.puntajes[0]:
+            ganador = self.nombres[1]
+
+        mensaje = f"¡El juego ha terminado!\n{self.nombres[0]}: {self.puntajes[0]} puntos\n{self.nombres[1]}: {self.puntajes[1]} puntos\n"
+        if ganador:
+            mensaje += f"El ganador es: {ganador}"
+        else:
+            mensaje += "¡Empate!"
+
+        messagebox.showinfo("Resultado Final", mensaje)
+
+if __name__ == "__main__":
+    MatrizAritmeticaGUI()
